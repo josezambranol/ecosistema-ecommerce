@@ -1,0 +1,13 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: producto-service
+  datasource:
+    url: jdbc:h2:mem:productodb
+  h2:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: update

@@ -1,0 +1,14 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: pedido-service
+  datasource:
+    url: jdbc:h2:mem:pedidodb
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+producto-service:
+  url: http://localhost:8081
