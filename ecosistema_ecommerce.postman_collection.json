@@ -1,0 +1,176 @@
+﻿{
+	"info": {
+		"_postman_id": "a8f3b2d1-9c8e-4a7b-8f12-3e4d5c6b7a89",
+		"name": "Ecosistema E-Commerce - Taller Microservicios",
+		"description": "Colección de pruebas para el ecosistema de microservicios (producto-service en 8081 y pedido-service en 8082).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Producto-Service - Crear Producto",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nombre\": \"Laptop Gamer\",\n  \"precio\": 3500000.00,\n  \"stock\": 10\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8081/api/productos",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"productos"
+					]
+				},
+				"description": "Prueba 1: Creación de un producto en producto-service"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Producto-Service - Listar Productos",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/api/productos",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"productos"
+					]
+				},
+				"description": "Prueba 2: Listar todos los productos registrados"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Producto-Service - Consultar Producto por ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/api/productos/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"productos",
+						"1"
+					]
+				},
+				"description": "Consulta individual por ID en producto-service"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Pedido-Service - Crear Pedido Exitoso",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8082/api/pedidos?productoId=1&cantidad=2",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8082",
+					"path": [
+						"api",
+						"pedidos"
+					],
+					"query": [
+						{
+							"key": "productoId",
+							"value": "1"
+						},
+						{
+							"key": "cantidad",
+							"value": "2"
+						}
+					]
+				},
+				"description": "Prueba 3 & 4: Creación de pedido con consulta síncrona a producto-service y cálculo de total"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Pedido-Service - Error 404 (Producto Inexistente)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8082/api/pedidos?productoId=999&cantidad=2",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8082",
+					"path": [
+						"api",
+						"pedidos"
+					],
+					"query": [
+						{
+							"key": "productoId",
+							"value": "999"
+						},
+						{
+							"key": "cantidad",
+							"value": "2"
+						}
+					]
+				},
+				"description": "Prueba 5: Caso de error controlado al intentar pedir un producto inexistente"
+			},
+			"response": []
+		},
+		{
+			"name": "6. Pedido-Service - Error 503 (Servicio Caído)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8082/api/pedidos?productoId=1&cantidad=2",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8082",
+					"path": [
+						"api",
+						"pedidos"
+					],
+					"query": [
+						{
+							"key": "productoId",
+							"value": "1"
+						},
+						{
+							"key": "cantidad",
+							"value": "2"
+						}
+					]
+				},
+				"description": "Prueba de Resiliencia: Fallback cuando producto-service está apagado"
+			},
+			"response": []
+		}
+	]
+}

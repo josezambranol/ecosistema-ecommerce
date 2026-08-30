@@ -2,7 +2,14 @@
 
 **Asignatura:** Electiva I – Arquitectura de Microservicios con Spring Boot  
 **Institución:** Fundación Universitaria Tecnológico Comfenalco  
-**Periodo:** 2026-I — V Semestre  
+**Periodo Académico:** 2026-I — V Semestre  
+
+---
+
+## 👥 Integrantes del Equipo
+- **José Daniel Zambrano**
+- **Carlos Mario Bechara**
+- **Rafael Sarmiento Peña**
 
 ---
 
@@ -30,7 +37,7 @@ No obstante, bajo la configuración actual donde la dirección está configurada
 
 ---
 
-## 3. Guía de Pruebas en Postman (5 Casos de Prueba)
+## 3. Evidencias de Ejecución de Pruebas (Postman)
 
 ### Prerrequisitos
 Tener ambos microservicios en ejecución:
@@ -51,7 +58,7 @@ Tener ambos microservicios en ejecución:
     "stock": 10
   }
   ```
-- **Respuesta Esperada (HTTP 200 OK):**
+- **Respuesta Obtenida (HTTP 200 OK):**
   ```json
   {
     "id": 1,
@@ -60,13 +67,15 @@ Tener ambos microservicios en ejecución:
     "stock": 10
   }
   ```
+- **Captura Postman:**
+  ![Captura Prueba 1 - Crear Producto](docs/screenshots/prueba1_crear_producto.png)
 
 ---
 
 ### Prueba 2: Listar Productos (GET `producto-service`)
 - **Método:** `GET`
 - **URL:** `http://localhost:8081/api/productos`
-- **Respuesta Esperada (HTTP 200 OK):**
+- **Respuesta Obtenida (HTTP 200 OK):**
   ```json
   [
     {
@@ -77,13 +86,15 @@ Tener ambos microservicios en ejecución:
     }
   ]
   ```
+- **Captura Postman:**
+  ![Captura Prueba 2 - Listar Productos](docs/screenshots/prueba2_listar_productos.png)
 
 ---
 
 ### Prueba 3 & 4: Crear Pedido con Cálculo de Total (POST `pedido-service`)
 - **Método:** `POST`
 - **URL:** `http://localhost:8082/api/pedidos?productoId=1&cantidad=2`
-- **Respuesta Esperada (HTTP 200 OK):**
+- **Respuesta Obtenida (HTTP 200 OK):**
   ```json
   {
     "id": 1,
@@ -93,35 +104,41 @@ Tener ambos microservicios en ejecución:
     "estado": "CREADO"
   }
   ```
-  *(Se verifica que el total sea `3500000.00 * 2 = 7000000.00`)*
+  *(Se comprueba que el total calculado es `$3,500,000.00 × 2 = $7,000,000.00` obtenido directamente desde `producto-service`).*
+- **Captura Postman:**
+  ![Captura Prueba 3 y 4 - Crear Pedido y Total](docs/screenshots/prueba3_crear_pedido.png)
 
 ---
 
 ### Prueba 5: Caso de Error Controlado — Producto Inexistente (POST `pedido-service`)
 - **Método:** `POST`
 - **URL:** `http://localhost:8082/api/pedidos?productoId=999&cantidad=2`
-- **Respuesta Esperada (HTTP 404 Not Found):**
+- **Respuesta Obtenida (HTTP 404 Not Found):**
   ```json
   {
-    "timestamp": "2026-08-30T...",
     "status": 404,
     "error": "Not Found",
-    "message": "Producto no encontrado: 999"
+    "message": "Producto no encontrado: 999",
+    "timestamp": "2026-08-30T..."
   }
   ```
-  *(El servicio responde con un error estructurado y no presenta caídas ni respuestas 500 no controladas).*
+  *(El servicio responde con un JSON controlado sin sufrir caídas ni generar errores 500 no controlados).*
+- **Captura Postman:**
+  ![Captura Prueba 5 - Error 404 Producto Inexistente](docs/screenshots/prueba5_error_404.png)
 
 ---
 
 ### Punto de Verificación de Resiliencia: `producto-service` Caído
 - **Condición:** Detener `producto-service` y enviar una solicitud de creación de pedido a `pedido-service`.
 - **URL:** `POST http://localhost:8082/api/pedidos?productoId=1&cantidad=2`
-- **Respuesta Esperada (HTTP 503 Service Unavailable):**
+- **Respuesta Obtenida (HTTP 503 Service Unavailable):**
   ```json
   {
-    "timestamp": "2026-08-30T...",
     "status": 503,
     "error": "Service Unavailable",
-    "message": "Error de comunicación: producto-service no disponible"
+    "message": "Error de comunicación: producto-service no disponible",
+    "timestamp": "2026-08-30T..."
   }
   ```
+- **Captura Postman:**
+  ![Captura Prueba Resiliencia - Error 503](docs/screenshots/prueba_resiliencia_503.png)
