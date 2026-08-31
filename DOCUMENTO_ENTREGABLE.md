@@ -1,144 +1,97 @@
-# Documento de Entrega — Taller Básico de Microservicios con Spring Boot
+# Documento de Entrega — Taller Básico de Microservicios
 
-**Asignatura:** Electiva I – Arquitectura de Microservicios con Spring Boot  
-**Institución:** Fundación Universitaria Tecnológico Comfenalco  
-**Periodo Académico:** 2026-I — V Semestre  
+**Electiva I: Arquitectura de Microservicios con Spring Boot** · Fundación Universitaria Tecnológico
+Comfenalco · V Semestre · 2026-I
 
----
+**Integrantes:** José Daniel Zambrano · Carlos Mario Bechara · Rafael Sarmiento Peña
 
-## 👥 Integrantes del Equipo
-- **José Daniel Zambrano**
-- **Carlos Mario Bechara**
-- **Rafael Sarmiento Peña**
+> Código fuente, instrucciones de ejecución y capturas de las pruebas en Postman: ver
+> [`README.md`](README.md).
 
 ---
 
-## 1. Responsabilidad de cada Microservicio
+### 1. ¿Qué responsabilidad tiene cada microservicio?
 
-| Microservicio | Puerto | Bounded Context y Responsabilidad Principal |
-| :--- | :---: | :--- |
-| **`producto-service`** | `8081` | **Gestión de Catálogo e Inventario:** Administra de manera exclusiva el ciclo de vida de los productos (creación, consulta por ID, listado general y verificación de existencias). Posee su propia base de datos independiente (`productodb` en H2). |
-| **`pedido-service`** | `8082` | **Gestión de Órdenes y Compras:** Gestiona la recepción y registro de los pedidos de los clientes. Al crear un pedido, establece una comunicación HTTP síncrona con `producto-service` para verificar la existencia del producto y consultar su precio unitario, calculando el total (`precio × cantidad`) y almacenando el pedido en su base de datos propia (`pedidodb` en H2). |
+**`producto-service` (puerto 8081) — catálogo.** Es el dueño exclusivo de los productos: los crea, los
+lista, los consulta por ID y expone sus existencias. Ningún otro servicio toca su base de datos
+(`productodb`); quien necesite un producto debe pedírselo por HTTP.
 
----
+**`pedido-service` (puerto 8082) — pedidos.** Es el dueño de las órdenes de compra. Al recibir un pedido
+consulta a `producto-service` para verificar que el producto exista y obtener su precio, calcula
+`total = precio × cantidad`, marca el pedido como `CREADO` y lo guarda en su propia base (`pedidodb`).
 
-## 2. Preguntas de Reflexión Arquitectural
-
-### ¿Qué pasaría si necesitáramos escalar solo `producto-service`?
-Gracias al desacoplamiento entre servicios, es posible aplicar **escalabilidad horizontal selectiva** a `producto-service` (iniciar 3, 5 o más instancias en diferentes puertos o contenedores) sin tener que duplicar recursos en `pedido-service`. Esto es crucial en comercio electrónico, donde el tráfico de navegación/búsqueda de productos es significativamente mayor que el de órdenes efectivas.
-
-No obstante, bajo la configuración actual donde la dirección está configurada de manera estática (`http://localhost:8081`), `pedido-service` no tiene la capacidad de distribuir el tráfico entre las nuevas instancias de `producto-service`, desaprovechando el escalamiento a menos que se interponga un balanceador o un mecanismo de Service Discovery.
-
-### ¿Qué limitación notaron al tener la URL del otro servicio escrita directamente en `application.yml`?
-1. **Acoplamiento de Infraestructura y Red:** Si `producto-service` cambia de IP, nombre de host o puerto, se debe reconfigurar y reiniciar/redesplegar `pedido-service`.
-2. **Falta de Balanceo de Carga en Cliente:** Todas las peticiones van a una única dirección fija, impidiendo distribuir peticiones entre réplicas.
-3. **Falta de Detección de Caídas y Enrutamiento Dinámico:** Si la instancia cae y se levanta en otra dirección, `pedido-service` no se entera.
-4. **Fundamento para Service Discovery:** Esta limitación demuestra la necesidad indispensable de **Eureka / Service Discovery** (para registrar y ubicar servicios por su nombre lógico `producto-service` sin conocer IPs/puertos) y **Spring Cloud Config Server** (para centralizar y actualizar configuraciones en tiempo de ejecución).
+La separación se sostiene en dos decisiones: **cada servicio tiene su propia base de datos** y **la única
+vía de contacto es HTTP**. Eso es lo que permite desplegarlos, versionarlos y escalarlos por separado.
 
 ---
 
-## 3. Evidencias de Ejecución de Pruebas (Postman)
+### 2. ¿Qué pasaría si necesitáramos escalar solo `producto-service`?
 
-### Prerrequisitos
-Tener ambos microservicios en ejecución:
-- `producto-service` corriendo en puerto `8081`
-- `pedido-service` corriendo en puerto `8082`
+Podríamos hacerlo sin tocar `pedido-service`, y es justo lo que conviene: en un e-commerce, la gente
+consulta el catálogo muchísimo más de lo que efectivamente compra. Levantar tres o cinco instancias del
+catálogo, dejando una sola de pedidos, aprovecha los recursos donde hace falta. Esa es la ventaja
+concreta frente al monolito, donde para atender más consultas de productos habría que replicar
+*también* toda la lógica de pedidos.
 
----
-
-### Prueba 1: Crear Producto (POST `producto-service`)
-- **Método:** `POST`
-- **URL:** `http://localhost:8081/api/productos`
-- **Headers:** `Content-Type: application/json`
-- **Body (raw JSON):**
-  ```json
-  {
-    "nombre": "Laptop Gamer",
-    "precio": 3500000.00,
-    "stock": 10
-  }
-  ```
-- **Respuesta Obtenida (HTTP 200 OK):**
-  ```json
-  {
-    "id": 1,
-    "nombre": "Laptop Gamer",
-    "precio": 3500000.00,
-    "stock": 10
-  }
-  ```
-- **Captura Postman:**
-  ![Captura Prueba 1 - Crear Producto](docs/screenshots/prueba1_crear_producto.png)
+**Pero con el diseño actual no lo aprovecharíamos.** `pedido-service` apunta a una dirección fija,
+`http://localhost:8081`, así que seguiría enviando el 100 % del tráfico a una sola instancia mientras
+las demás quedan ociosas. Para que el escalado sirva haría falta un balanceador delante del catálogo, o
+un registro de servicios que permita descubrir las réplicas y repartir entre ellas.
 
 ---
 
-### Prueba 2: Listar Productos (GET `producto-service`)
-- **Método:** `GET`
-- **URL:** `http://localhost:8081/api/productos`
-- **Respuesta Obtenida (HTTP 200 OK):**
-  ```json
-  [
-    {
-      "id": 1,
-      "nombre": "Laptop Gamer",
-      "precio": 3500000.00,
-      "stock": 10
-    }
-  ]
-  ```
-- **Captura Postman:**
-  ![Captura Prueba 2 - Listar Productos](docs/screenshots/prueba2_listar_productos.png)
+### 3. ¿Qué limitación notaron al tener la URL del otro servicio escrita en `application.yml`?
+
+Que **acopla el servicio a una topología de red concreta**. En detalle:
+
+1. **Hay que conocer host y puerto de antemano.** Si el catálogo cambia de dirección —otro servidor,
+   otro puerto, un contenedor nuevo— hay que editar el archivo y reiniciar `pedido-service`.
+2. **No hay balanceo de carga.** Una URL fija apunta a una sola instancia; no existe forma de repartir
+   peticiones entre varias réplicas.
+3. **No hay detección de caídas.** Si esa instancia muere, `pedido-service` sigue insistiendo contra una
+   dirección muerta. Nuestro manejo de errores lo convierte en un `503` controlado, pero el servicio no
+   puede reintentar contra otra instancia sana porque no sabe que existen.
+4. **La configuración vive dentro del artefacto.** Cambiar un valor obliga a recompilar o redesplegar,
+   y cada entorno (local, pruebas, producción) necesita su propia versión del archivo.
+
+Estas tres limitaciones son exactamente el problema que resuelven los temas siguientes del curso:
+**Config Server** (Semana 6) externaliza la configuración para no tener que reconstruir el servicio, y
+**Eureka / Service Discovery** (Semana 7) elimina la necesidad de conocer host y puerto: `pedido-service`
+pedirá el servicio por su nombre lógico, `producto-service`, y el registro le dirá qué instancias hay
+disponibles en ese momento.
 
 ---
 
-### Prueba 3 & 4: Crear Pedido con Cálculo de Total (POST `pedido-service`)
-- **Método:** `POST`
-- **URL:** `http://localhost:8082/api/pedidos?productoId=1&cantidad=2`
-- **Respuesta Obtenida (HTTP 200 OK):**
-  ```json
-  {
-    "id": 1,
-    "productoId": 1,
-    "cantidad": 2,
-    "total": 7000000.00,
-    "estado": "CREADO"
-  }
-  ```
-  *(Se comprueba que el total calculado es `$3,500,000.00 × 2 = $7,000,000.00` obtenido directamente desde `producto-service`).*
-- **Captura Postman:**
-  ![Captura Prueba 3 y 4 - Crear Pedido y Total](docs/screenshots/prueba3_crear_pedido.png)
+## Anexo — Evidencias de las pruebas en Postman
 
----
+Ejecución de la colección `ecosistema_ecommerce.postman_collection.json` contra ambos microservicios
+levantados en `localhost:8081` y `localhost:8082`. Cada captura muestra la petición enviada y la
+respuesta real del servicio, con su código de estado y su cuerpo JSON.
 
-### Prueba 5: Caso de Error Controlado — Producto Inexistente (POST `pedido-service`)
-- **Método:** `POST`
-- **URL:** `http://localhost:8082/api/pedidos?productoId=999&cantidad=2`
-- **Respuesta Obtenida (HTTP 404 Not Found):**
-  ```json
-  {
-    "status": 404,
-    "error": "Not Found",
-    "message": "Producto no encontrado: 999",
-    "timestamp": "2026-08-30T..."
-  }
-  ```
-  *(El servicio responde con un JSON controlado sin sufrir caídas ni generar errores 500 no controlados).*
-- **Captura Postman:**
-  ![Captura Prueba 5 - Error 404 Producto Inexistente](docs/screenshots/prueba5_error_404.png)
+**Prueba 1 — Crear producto.** `POST http://localhost:8081/api/productos` → `200 OK`,
+`{ "id": 1, "nombre": "Laptop Gamer", "precio": 3500000.00, "stock": 10 }`
 
----
+![Prueba 1 - Crear producto](docs/screenshots/prueba1_crear_producto.png)
 
-### Punto de Verificación de Resiliencia: `producto-service` Caído
-- **Condición:** Detener `producto-service` y enviar una solicitud de creación de pedido a `pedido-service`.
-- **URL:** `POST http://localhost:8082/api/pedidos?productoId=1&cantidad=2`
-- **Respuesta Obtenida (HTTP 503 Service Unavailable):**
-  ```json
-  {
-    "status": 503,
-    "error": "Service Unavailable",
-    "message": "Error de comunicación: producto-service no disponible",
-    "timestamp": "2026-08-30T..."
-  }
-  ```
-- **Captura Postman:**
-  ![Captura Prueba Resiliencia - Error 503](docs/screenshots/prueba_resiliencia_503.png)
+**Prueba 2 — Listar productos.** `GET http://localhost:8081/api/productos` → `200 OK` con los dos
+productos registrados.
+
+![Prueba 2 - Listar productos](docs/screenshots/prueba2_listar_productos.png)
+
+**Pruebas 3 y 4 — Crear pedido y verificar el total.**
+`POST http://localhost:8082/api/pedidos?productoId=1&cantidad=2` → `200 OK`. El total se calcula con el
+precio real obtenido de `producto-service`: `3 500 000,00 × 2 = 7 000 000,00`.
+
+![Pruebas 3 y 4 - Crear pedido](docs/screenshots/prueba3_crear_pedido.png)
+
+**Prueba 5 — Producto inexistente.**
+`POST http://localhost:8082/api/pedidos?productoId=999&cantidad=2` → `404 Not Found` con el mensaje
+`"Producto no encontrado: 999"`. El servicio responde de forma controlada, sin caerse.
+
+![Prueba 5 - Error 404](docs/screenshots/prueba5_error_404.png)
+
+**Punto de verificación clave — `producto-service` caído.** Con el catálogo detenido, la misma petición
+devuelve `503 Service Unavailable` y el mensaje `"Error de comunicación: producto-service no disponible"`.
+`pedido-service` sigue en pie.
+
+![Resiliencia - Error 503](docs/screenshots/prueba_resiliencia_503.png)

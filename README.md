@@ -1,283 +1,239 @@
-# Taller Práctico: Implementación de un Ecosistema Mínimo de Microservicios con Spring Boot
+# Ecosistema Mínimo de Microservicios con Spring Boot
 
-**Asignatura:** Electiva I – Arquitectura de Microservicios con Spring Boot  
-**Institución:** Fundación Universitaria Tecnológico Comfenalco — V Semestre (2026-I)  
+**Taller Básico — Electiva I: Arquitectura de Microservicios con Spring Boot**
+Fundación Universitaria Tecnológico Comfenalco · V Semestre · 2026-I
 
----
-
-## 👥 Integrantes del Equipo
-- **José Daniel Zambrano**
-- **Carlos Mario Bechara**
-- **Rafael Sarmiento Peña**
+### Integrantes
+- José Daniel Zambrano
+- Carlos Mario Bechara
+- Rafael Sarmiento Peña
 
 ---
 
-## 📌 1. Objetivo de Aprendizaje
-Construir, configurar, ejecutar y conectar dos microservicios independientes desarrollados con **Spring Boot 3** y **Java 21**, aplicando principios de **responsabilidad única (Single Responsibility Principle)** y **bajo acoplamiento**, estableciendo comunicación síncrona HTTP mediante `RestTemplate` y verificando el ecosistema mediante pruebas de API.
+## 1. Objetivo
 
----
+Construir, ejecutar y conectar **dos microservicios independientes** en Spring Boot, aplicando
+responsabilidad única y bajo acoplamiento, y estableciendo **comunicación síncrona HTTP** entre ellos
+mediante `RestTemplate`.
 
-## 🏢 2. Escenario de Negocio y Bounded Contexts
-
-El ecosistema se basa en un dominio de comercio electrónico (e-commerce) dividido en dos bounded contexts claramente diferenciados:
+## 2. Arquitectura y bounded contexts
 
 ```
-                  ┌────────────────────────────────────────┐
-                  │              Cliente API               │
-                  └──────────────┬──────────────────┬──────┘
-                                 │                  │
-               1. Crear/Listar   │                  │ 3. Crear Pedido
-                  Productos      │                  │    (POST /api/pedidos)
-                                 ▼                  ▼
-                    ┌─────────────────┐       ┌─────────────────┐
-                    │producto-service │       │ pedido-service  │
-                    │  (Puerto 8081)  │       │  (Puerto 8082)  │
-                    └────────┬────────┘       └────────┬────────┘
-                             ▲                         │
-                             │  2. Consulta Síncrona   │
-                             │     HTTP (RestTemplate) │
-                             └─────────────────────────┘
-                                   GET /api/productos/{id}
+                    ┌────────────────────────┐
+                    │      Cliente API       │
+                    │       (Postman)        │
+                    └───────┬────────────┬───┘
+       1. Crear / listar    │            │   3. Crear pedido
+          productos         │            │      POST /api/pedidos
+                            ▼            ▼
+              ┌──────────────────┐   ┌──────────────────┐
+              │ producto-service │   │  pedido-service  │
+              │   puerto 8081    │   │   puerto 8082    │
+              │  H2: productodb  │   │  H2: pedidodb    │
+              └────────▲─────────┘   └─────────┬────────┘
+                       │                       │
+                       │  2. Consulta síncrona │
+                       │     RestTemplate      │
+                       └───────────────────────┘
+                     GET /api/productos/{id}
 ```
 
-| Microservicio | Puerto | Responsabilidad (Bounded Context) | Base de Datos |
+| Microservicio | Puerto | Responsabilidad (bounded context) | Base de datos |
 | :--- | :---: | :--- | :--- |
-| **`producto-service`** | `8081` | Gestiona el catálogo de productos: creación, consulta individual por ID, listado general y verificación de existencias. | H2 en memoria (`productodb`) |
-| **`pedido-service`** | `8082` | Gestiona los pedidos de los clientes. Al recibir una orden, consulta a `producto-service` para validar la existencia y precio del producto, calcula el total y registra el pedido. | H2 en memoria (`pedidodb`) |
+| `producto-service` | 8081 | Catálogo de productos: creación, consulta por ID, listado y exposición de existencias. | H2 en memoria (`productodb`) |
+| `pedido-service` | 8082 | Pedidos de clientes. Al crear uno, consulta a `producto-service` para validar que el producto exista y obtener su precio, calcula el total y lo persiste. | H2 en memoria (`pedidodb`) |
 
----
+Cada servicio tiene su **propia base de datos**: no comparten esquema ni acceden a las tablas del otro.
+Toda la comunicación entre ellos pasa por HTTP.
 
-## 📁 3. Estructura del Ecosistema
+## 3. Stack técnico
 
-El proyecto está estructurado con dos microservicios autónomos e independientes dentro del repositorio:
+| Componente | Versión |
+| :--- | :--- |
+| Java | 21 (LTS) |
+| Spring Boot | 3.5.16 |
+| Maven | 3.9.x |
+| Persistencia | Spring Data JPA + H2 en memoria |
+| Comunicación entre servicios | `RestTemplate` (opción 6.3A de la guía) |
+| Utilidades | Lombok |
+
+## 4. Estructura del repositorio
 
 ```
 ecosistema-ecommerce/
-├── .gitignore
-├── README.md
-├── DOCUMENTO_ENTREGABLE.md
+├── README.md                                  ← este documento
+├── DOCUMENTO_ENTREGABLE.md                    ← documento breve con la reflexión
+├── ecosistema_ecommerce.postman_collection.json
+├── docs/screenshots/                          ← evidencias de las pruebas en Postman
 │
-├── producto-service/                              # Microservicio de Catálogo (Puerto 8081)
+├── producto-service/                          # puerto 8081
 │   ├── pom.xml
-│   └── src/
-│       ├── main/
-│       │   ├── java/com/ecosistema/producto_service/
-│       │   │   ├── ProductoServiceApplication.java
-│       │   │   ├── model/
-│       │   │   │   └── Producto.java              # Entidad JPA: id, nombre, precio, stock
-│       │   │   ├── repository/
-│       │   │   │   └── ProductoRepository.java    # Interfaz JpaRepository<Producto, Long>
-│       │   │   └── controller/
-│       │   │       └── ProductoController.java    # REST: GET /api/productos, POST, etc.
-│       │   └── resources/
-│       │       └── application.yml                # Config: Puerto 8081, H2, Consola H2
-│       └── test/
+│   └── src/main/java/com/ecosistema/producto_service/
+│       ├── ProductoServiceApplication.java
+│       ├── model/Producto.java                # entidad JPA: id, nombre, precio, stock
+│       ├── repository/ProductoRepository.java # JpaRepository<Producto, Long>
+│       └── controller/ProductoController.java # API REST del catálogo
 │
-└── pedido-service/                                # Microservicio de Pedidos (Puerto 8082)
+└── pedido-service/                            # puerto 8082
     ├── pom.xml
-    └── src/
-        ├── main/
-        │   ├── java/com/ecosistema/pedido_service/
-        │   │   ├── PedidoServiceApplication.java
-        │   │   ├── config/
-        │   │   │   └── RestTemplateConfig.java    # Bean de comunicación HTTP RestTemplate
-        │   │   ├── model/
-        │   │   │   └── Pedido.java                # Entidad JPA: id, productoId, cantidad, total, estado
-        │   │   ├── dto/
-        │   │   │   └── Producto.java              # DTO para deserializar respuesta de producto-service
-        │   │   ├── repository/
-        │   │   │   └── PedidoRepository.java      # Interfaz JpaRepository<Pedido, Long>
-        │   │   ├── service/
-        │   │   │   └── PedidoService.java         # Lógica: llamada a producto-service y cálculo de total
-        │   │   ├── controller/
-        │   │   │   └── PedidoController.java      # REST: POST /api/pedidos?productoId=X&cantidad=Y
-        │   │   └── exception/
-        │   │       └── GlobalExceptionHandler.java# Control de errores (404 Not Found, 503 Service Unavailable)
-        │   └── resources/
-        │       └── application.yml                # Config: Puerto 8082, H2, URL producto-service
-        └── test/
+    └── src/main/java/com/ecosistema/pedido_service/
+        ├── PedidoServiceApplication.java
+        ├── model/Pedido.java                  # entidad JPA: id, productoId, cantidad, total, estado
+        ├── dto/Producto.java                  # DTO de la respuesta de producto-service
+        ├── config/RestTemplateConfig.java     # bean RestTemplate
+        ├── repository/PedidoRepository.java   # JpaRepository<Pedido, Long>
+        ├── service/PedidoService.java         # llamada síncrona + cálculo del total
+        ├── controller/PedidoController.java   # API REST de pedidos
+        └── exception/GlobalExceptionHandler.java   # traduce excepciones a 404 / 503
 ```
 
----
+## 5. Cómo ejecutar
 
-## 🛠️ 4. Paso a Paso de la Construcción
+**Requisitos:** JDK 21 (`java -version`) y Maven 3.9+ (`mvn -version`).
 
-### Parte 2 — Construcción de `producto-service`
+Los dos servicios son aplicaciones independientes: se levantan en **dos terminales separadas** y ninguno
+depende del arranque del otro.
 
-1. **Configuración (`producto-service/src/main/resources/application.yml`):**
-   - Puerto de escucha asignado: `8081`.
-   - Conexión a base de datos en memoria H2 (`jdbc:h2:mem:productodb`).
-   - Habilitación de la consola Web de H2 en `/h2-console`.
-
-2. **Entidad JPA (`Producto.java`):**
-   - Atributos: `id` (Generación `IDENTITY`), `nombre` (`String`), `precio` (`BigDecimal`), `stock` (`Integer`).
-   - Anotaciones Lombok: `@Data`, `@NoArgsConstructor`, `@AllArgsConstructor`.
-
-3. **Capa de Persistencia (`ProductoRepository.java`):**
-   - Extiende `JpaRepository<Producto, Long>` heredando operaciones CRUD automáticas.
-
-4. **Capa de Exposición REST (`ProductoController.java`):**
-   - Endpoint `GET /api/productos`: Retorna el listado completo de productos.
-   - Endpoint `GET /api/productos/{id}`: Retorna un producto específico o `404 Not Found` si no existe.
-   - Endpoint `POST /api/productos`: Recibe un JSON en el body y persiste el nuevo producto.
-
----
-
-### Parte 3 — Construcción de `pedido-service`
-
-1. **Configuración (`pedido-service/src/main/resources/application.yml`):**
-   - Puerto de escucha asignado: `8082`.
-   - Conexión a su propia base de datos H2 (`jdbc:h2:mem:pedidodb`).
-   - Declaración de la propiedad `producto-service.url: http://localhost:8081` para la comunicación entre servicios.
-
-2. **Entidad JPA y DTOs:**
-   - **`Pedido.java`:** Atributos `id`, `productoId`, `cantidad`, `total` (`BigDecimal`), `estado` (`String`).
-   - **`Producto.java` (DTO):** Representación desacoplada del producto que se recibe al consultar `producto-service`.
-
-3. **Configuración del Cliente HTTP (`RestTemplateConfig.java`):**
-   - Registro del Bean `@Bean public RestTemplate restTemplate()` en el contenedor de Spring.
-
-4. **Lógica de Negocio y Comunicación Síncrona (`PedidoService.java`):**
-   - Inyecta `RestTemplate` y la URL configurada mediante `@Value("${producto-service.url}")`.
-   - Realiza la llamada HTTP GET `restTemplate.getForObject(productoServiceUrl + "/api/productos/" + productoId, Producto.class)`.
-   - Si el producto no existe (retorna 404), captura la excepción y lanza `IllegalArgumentException("Producto no encontrado: " + productoId)`.
-   - Si `producto-service` no se encuentra disponible (servicio caído), captura `RestClientException` y lanza `IllegalStateException`.
-   - Calcula el total del pedido multiplicando el precio unitario por la cantidad: `producto.getPrecio().multiply(BigDecimal.valueOf(cantidad))`.
-   - Asigna el estado `"CREADO"` y guarda la orden en `PedidoRepository`.
-
-5. **Capa Controladora y Manejo de Excepciones:**
-   - **`PedidoController.java`:** Expone `POST /api/pedidos?productoId={id}&cantidad={cantidad}`.
-   - **`GlobalExceptionHandler.java`:** Captura las excepciones de negocio y genera respuestas JSON limpias y estructuradas con códigos HTTP adecuados (404 para productos inexistentes y 503 para caídas del servicio de productos), previniendo respuestas de error 500 no controladas.
-
----
-
-## 🚀 5. Cómo Ejecutar el Proyecto Localmente
-
-### Prerrequisitos
-- **Java 21 LTS** (`java -version`)
-- **Maven 3.9+** (`mvn -version`)
-
-### Paso 1: Levantar `producto-service` (Terminal 1)
-```powershell
+```bash
+# Terminal 1 — catálogo
 cd producto-service
-mvn spring-boot:run
-```
-*El servicio estará activo en `http://localhost:8081`.*
+mvn spring-boot:run          # escucha en http://localhost:8081
 
-### Paso 2: Levantar `pedido-service` (Terminal 2)
-```powershell
+# Terminal 2 — pedidos
 cd pedido-service
-mvn spring-boot:run
+mvn spring-boot:run          # escucha en http://localhost:8082
 ```
-*El servicio estará activo en `http://localhost:8082`.*
 
----
+Consola H2 del catálogo: `http://localhost:8081/h2-console` (JDBC URL `jdbc:h2:mem:productodb`).
 
-## 🧪 6. Guía de Pruebas con Postman (5 Pruebas Paso a Paso)
+> Las bases de datos son **en memoria**: los datos se pierden al detener cada servicio.
 
-Con ambos microservicios en ejecución, ejecutar en Postman (o mediante cURL / PowerShell) la siguiente secuencia:
+## 6. Endpoints
 
-### Prueba 1: Crear Producto en `producto-service`
-- **Método:** `POST`
-- **URL:** `http://localhost:8081/api/productos`
-- **Headers:** `Content-Type: application/json`
-- **Body (raw JSON):**
-  ```json
-  {
-    "nombre": "Laptop Gamer",
-    "precio": 3500000.00,
-    "stock": 10
-  }
-  ```
-- **Respuesta (200 OK):**
-  ```json
-  {
-    "id": 1,
-    "nombre": "Laptop Gamer",
-    "precio": 3500000.00,
-    "stock": 10
-  }
-  ```
+### producto-service — `http://localhost:8081`
 
----
+| Método | Ruta | Descripción | Respuestas |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/productos` | Lista todos los productos | `200` |
+| `GET` | `/api/productos/{id}` | Consulta un producto por ID | `200`, `404` si no existe |
+| `POST` | `/api/productos` | Crea un producto (JSON en el body) | `200` |
 
-### Prueba 2: Confirmar Registro de Productos (GET)
-- **Método:** `GET`
-- **URL:** `http://localhost:8081/api/productos`
-- **Respuesta (200 OK):**
-  ```json
-  [
-    {
-      "id": 1,
-      "nombre": "Laptop Gamer",
-      "precio": 3500000.00,
-      "stock": 10
-    }
-  ]
-  ```
+### pedido-service — `http://localhost:8082`
 
----
+| Método | Ruta | Descripción | Respuestas |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/pedidos?productoId={id}&cantidad={n}` | Crea un pedido consultando el precio a `producto-service` | `200`, `404`, `503` |
 
-### Prueba 3 & 4: Crear Pedido y Verificar Total Calculado
-- **Método:** `POST`
-- **URL:** `http://localhost:8082/api/pedidos?productoId=1&cantidad=2`
-- **Respuesta (200 OK):**
-  ```json
-  {
-    "id": 1,
-    "productoId": 1,
-    "cantidad": 2,
-    "total": 7000000.00,
-    "estado": "CREADO"
-  }
-  ```
-  *(Se comprueba que `3500000.00 * 2 = 7000000.00` se calculó en base al precio real del producto).*
+## 7. Comunicación síncrona
 
----
+Al recibir `POST /api/pedidos`, `pedido-service` ejecuta:
 
-### Prueba 5: Caso de Error Controlado — Producto Inexistente
-- **Método:** `POST`
-- **URL:** `http://localhost:8082/api/pedidos?productoId=999&cantidad=2`
-- **Respuesta (404 Not Found):**
-  ```json
-  {
-    "status": 404,
-    "error": "Not Found",
-    "message": "Producto no encontrado: 999",
-    "timestamp": "2026-08-30T..."
-  }
-  ```
+```java
+Producto producto = restTemplate.getForObject(
+        productoServiceUrl + "/api/productos/" + productoId, Producto.class);
+```
 
----
+La dirección del otro servicio no está escrita en el código: se inyecta desde `application.yml`.
 
-### Punto de Verificación Clave (Resiliencia): `producto-service` Caído
-- **Procedimiento:** Detener `producto-service` (Ctrl+C en la Terminal 1) y realizar un POST de creación de pedido a `pedido-service`.
-- **URL:** `POST http://localhost:8082/api/pedidos?productoId=1&cantidad=2`
-- **Respuesta (503 Service Unavailable):**
-  ```json
-  {
-    "status": 503,
-    "error": "Service Unavailable",
-    "message": "Error de comunicación: producto-service no disponible",
-    "timestamp": "2026-08-30T..."
-  }
-  ```
-  *El servicio no colapsa ni cae, responde de manera elegante y controlada.*
+```yaml
+producto-service:
+  url: http://localhost:8081
+```
 
----
+```java
+@Value("${producto-service.url}")
+private String productoServiceUrl;
+```
 
-## 📝 7. Preguntas de Reflexión Arquitectural (Entregable Sección 8)
+Con el precio recibido calcula `total = precio × cantidad`, marca el pedido como `CREADO` y lo persiste
+en su propia base de datos.
 
-### 1. ¿Qué responsabilidad tiene cada microservicio?
-- **`producto-service`:** Administra de manera exclusiva el catálogo de productos (creación, lectura, inventario) y garantiza el aislamiento de sus datos a través de su propia base de datos (`productodb`).
-- **`pedido-service`:** Gestiona el ciclo de vida de las compras de los clientes (órdenes de pedido). Depende síncronamente de `producto-service` para la validación y cotización de los artículos, manteniendo sus registros aislados en su base de datos (`pedidodb`).
+## 8. Manejo controlado de errores
 
-### 2. ¿Qué pasaría si necesitáramos escalar solo `producto-service`?
-Al tratarse de microservicios independientes, podemos realizar **escalado horizontal selectivo** levantando múltiples instancias de `producto-service` (por ejemplo, en puertos 8081, 8083, 8084 o múltiples pods en Kubernetes) optimizando recursos, ya que en el e-commerce las consultas de productos superan en gran proporción a las compras efectivas.  
-Sin embargo, con la arquitectura actual donde `pedido-service` tiene la URL quemada (`http://localhost:8081`), no se podría aprovechar este escalamiento sin un balanceador de carga o un registro de servicios dinámico.
+`pedido-service` distingue **dos fallos distintos** y responde con el código HTTP que corresponde a cada
+uno, en lugar de propagar un `500` sin control:
 
-### 3. ¿Qué limitación notaron al tener la URL del otro servicio escrita directamente en `application.yml`?
-- **Acoplamiento rígido de red:** Obliga a conocer de antemano la IP y puerto exactos. Cualquier cambio de infraestructura requiere modificar archivos y reiniciar el servicio.
-- **Sin balanceo de carga integrado:** No es posible distribuir peticiones entre réplicas de forma transparente.
-- **Sin tolerancia a fallos dinámica:** No hay detección automática de instancias caídas ni enrutamiento hacia instancias sanas.
-- **Fundamento para Service Discovery:** Esto justifica directamente el uso de **Spring Cloud Config Server** (Semana 6) y **Eureka / Service Discovery** (Semana 7).
+| Situación | Excepción capturada | Respuesta |
+| :--- | :--- | :--- |
+| El producto no existe (el catálogo responde 404) | `HttpClientErrorException.NotFound` → `IllegalArgumentException` | `404 Not Found` |
+| `producto-service` está caído (no hay comunicación) | `RestClientException` → `IllegalStateException` | `503 Service Unavailable` |
+
+`GlobalExceptionHandler`, anotado con `@RestControllerAdvice`, convierte cada excepción en una respuesta
+JSON limpia con `timestamp`, `status`, `error` y `message`.
+
+**El punto clave:** si `producto-service` se cae, `pedido-service` **no se cae con él**. Responde `503`,
+sigue en pie y vuelve a operar en cuanto el catálogo regresa. Esta es la introducción informal a la
+resiliencia que la Semana 9 formaliza con Resilience4j (Circuit Breaker, Retry, Timeout).
+
+## 9. Evidencias de pruebas (Postman)
+
+La colección `ecosistema_ecommerce.postman_collection.json` se importa directamente en Postman y
+reproduce toda la secuencia. Las capturas corresponden a su ejecución real contra ambos servicios
+levantados en `localhost:8081` y `localhost:8082`.
+
+### Prueba 1 — Crear producto
+
+`POST http://localhost:8081/api/productos` con el body:
+
+```json
+{ "nombre": "Laptop Gamer", "precio": 3500000.00, "stock": 10 }
+```
+
+Respuesta `200 OK` → `{ "id": 1, "nombre": "Laptop Gamer", "precio": 3500000.00, "stock": 10 }`
+
+![Prueba 1 - Crear producto](docs/screenshots/prueba1_crear_producto.png)
+
+### Prueba 2 — Listar productos
+
+`GET http://localhost:8081/api/productos` → `200 OK` con los dos productos registrados.
+
+![Prueba 2 - Listar productos](docs/screenshots/prueba2_listar_productos.png)
+
+### Pruebas 3 y 4 — Crear pedido y verificar el total
+
+`POST http://localhost:8082/api/pedidos?productoId=1&cantidad=2` → `200 OK`
+
+El total llega calculado a partir del precio **real** obtenido de `producto-service`:
+`3 500 000,00 × 2 = 7 000 000,00`.
+
+![Pruebas 3 y 4 - Crear pedido](docs/screenshots/prueba3_crear_pedido.png)
+
+### Prueba 5 — Producto inexistente
+
+`POST http://localhost:8082/api/pedidos?productoId=999&cantidad=2` → `404 Not Found` con el mensaje
+`"Producto no encontrado: 999"`. El servicio responde de forma controlada, sin caerse ni devolver `500`.
+
+![Prueba 5 - Error 404](docs/screenshots/prueba5_error_404.png)
+
+### Punto de verificación clave — `producto-service` caído
+
+Con el catálogo **detenido**, la misma petición devuelve `503 Service Unavailable` y el mensaje
+`"Error de comunicación: producto-service no disponible"`. `pedido-service` sigue respondiendo.
+
+![Resiliencia - Error 503](docs/screenshots/prueba_resiliencia_503.png)
+
+## 10. Reflexión
+
+Las respuestas completas están en **[`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTREGABLE.md)**. En resumen:
+
+- **Responsabilidades.** `producto-service` es dueño exclusivo del catálogo; `pedido-service` es dueño de
+  los pedidos y depende del primero únicamente para validar y cotizar.
+- **Escalar solo `producto-service`.** Se pueden levantar más instancias del catálogo sin tocar pedidos,
+  que es lo sensato porque en e-commerce se consulta mucho más de lo que se compra. Pero con la URL fija
+  actual, `pedido-service` no sabría repartir tráfico entre esas réplicas.
+- **Límite de la URL fija en `application.yml`.** Obliga a conocer host y puerto de antemano, impide el
+  balanceo entre réplicas y no detecta instancias caídas. De ahí la necesidad de Config Server (Semana 6)
+  y Service Discovery con Eureka (Semana 7).
+
+## 11. Entregables
+
+| Requisito del taller (sección 8) | Dónde está |
+| :--- | :--- |
+| Repositorio Git con el código de ambos microservicios | Este repositorio |
+| Capturas de las 5 pruebas de Postman, incluido el caso de error | Sección 9 · archivos en `docs/screenshots/` |
+| Documento breve con las 3 preguntas de reflexión | [`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTREGABLE.md) |
+
+### Alcance
+
+Conforme a la nota de la guía, este taller **no incluye** Config Server, Eureka, API Gateway, seguridad
+ni contenedorización con Docker: esos temas corresponden a semanas posteriores del curso.

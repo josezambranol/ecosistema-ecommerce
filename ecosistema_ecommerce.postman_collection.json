@@ -37,6 +37,36 @@
 			"response": []
 		},
 		{
+			"name": "1b. Producto-Service - Crear Segundo Producto",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"nombre\": \"Mouse Inalambrico\",\n  \"precio\": 50000.00,\n  \"stock\": 100\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8081/api/productos",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"productos"
+					]
+				},
+				"description": "El taller pide crear al menos 2 productos de prueba antes de continuar"
+			},
+			"response": []
+		},
+		{
 			"name": "2. Producto-Service - Listar Productos",
 			"request": {
 				"method": "GET",
