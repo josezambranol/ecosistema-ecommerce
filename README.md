@@ -233,7 +233,3 @@ Las respuestas completas están en **[`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTRE
 | Capturas de las 5 pruebas de Postman, incluido el caso de error | Sección 9 · archivos en `docs/screenshots/` |
 | Documento breve con las 3 preguntas de reflexión | [`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTREGABLE.md) |
 
-### Alcance
-
-Conforme a la nota de la guía, este taller **no incluye** Config Server, Eureka, API Gateway, seguridad
-ni contenedorización con Docker: esos temas corresponden a semanas posteriores del curso.
