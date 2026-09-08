@@ -214,7 +214,7 @@ Con el catálogo **detenido**, la misma petición devuelve `503 Service Unavaila
 
 ## 10. Reflexión
 
-Las respuestas completas están en **[`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTREGABLE.md)**. En resumen:
+Las respuestas completas están en **[`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTREGABLE.md)** y en formato PDF formal en **[`DOCUMENTO_ENTREGABLE.pdf`](DOCUMENTO_ENTREGABLE.pdf)**. En resumen:
 
 - **Responsabilidades.** `producto-service` es dueño exclusivo del catálogo; `pedido-service` es dueño de
   los pedidos y depende del primero únicamente para validar y cotizar.
@@ -231,5 +231,5 @@ Las respuestas completas están en **[`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTRE
 | :--- | :--- |
 | Repositorio Git con el código de ambos microservicios | Este repositorio |
 | Capturas de las 5 pruebas de Postman, incluido el caso de error | Sección 9 · archivos en `docs/screenshots/` |
-| Documento breve con las 3 preguntas de reflexión | [`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTREGABLE.md) |
+| Documento breve con las 3 preguntas de reflexión | [`DOCUMENTO_ENTREGABLE.md`](DOCUMENTO_ENTREGABLE.md) · [`DOCUMENTO_ENTREGABLE.pdf`](DOCUMENTO_ENTREGABLE.pdf) |
 
